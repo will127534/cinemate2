@@ -1,7 +1,6 @@
 import threading
 import time
 import RPi.GPIO as GPIO
-from module.adc import ADC
 import smbus2
 from collections import deque
 
@@ -12,34 +11,13 @@ class ManualControls(threading.Thread):
         threading.Thread.__init__(self)
 
         self.cinepi_controller = cinepi_controller
-        self.adc = ADC() 
         self.monitor = monitor
         self.USBmonitor = USBmonitor
 
         GPIO.setwarnings(False)
         GPIO.setmode(GPIO.BCM)
         
-        #Check if Grove Base HAT is connected
-        
-        # I2C address of Grove Base HAT
-        GROVE_BASE_HAT_ADDRESS = 0x08
-
-        # Raspberry Pi I2C bus (usually bus 1)
-        I2C_BUS = 1
-
-        try:
-            # Try to read a byte from the Grove Base HAT
-            bus = smbus2.SMBus(I2C_BUS)
-            bus.read_byte(GROVE_BASE_HAT_ADDRESS)
-            self.grove_base_hat_connected = True
-            print("\nGrove Base HAT connected!")
-            # Close the I2C bus
-            bus.close()
-        except OSError as e:
-            # If an error occurs, the device is not connected
-            self.grove_base_hat_connected = False
-            print("\nGrove Base HAT is not connected.")
-
+        self.grove_base_hat_connected = False
         # Create deques for storing the last N readings
         self.iso_readings = deque(maxlen=5)
         self.shutter_angle_readings = deque(maxlen=5)
@@ -93,12 +71,6 @@ class ManualControls(threading.Thread):
             self.shutter_angle_steps = shutter_angle_steps
 
         self.fps_steps = fps_steps or list(range(1, 50))
-
-        if self.grove_base_hat_connected:
-            self.last_iso = self.calculate_iso(self.adc.read(self.iso_pot))
-            self.last_shutter_angle = self.calculate_shutter_angle(self.adc.read(self.shutter_angle_pot))
-            self.last_fps = self.calculate_fps(self.adc.read(self.fps_pot))
-            self.last_fps_set = self.calculate_fps(self.adc.read(self.fps_pot))
         
         # Check if shu_lock_pin and fps_lock_pin are defined
         if pot_lock_pin is not None:
@@ -212,9 +184,6 @@ class ManualControls(threading.Thread):
 
     def update_parameters(self):
         
-        iso_read = self.adc.read(self.iso_pot)
-        shutter_angle_read = self.adc.read(self.shutter_angle_pot)
-        fps_read = self.adc.read(self.fps_pot)
 
         iso_new = self.calculate_iso(iso_read)
         shutter_angle_new = self.calculate_shutter_angle(shutter_angle_read)
